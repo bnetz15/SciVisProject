@@ -73,7 +73,6 @@ class KeyboardInterface(object):
             self.seeds.SetYResolution(self.resolution)
             render_window.Render()
         elif key == 'DOWN':
-            print(self.resolution)
             self.resolution -= 1
             if self.resolution <= 1:
                 self.resolution = 1
@@ -108,7 +107,7 @@ def main():
     a, b = reader.GetOutput().GetScalarRange()
 
     # Stream Tracer
-    resolution = 8
+    resolution = 5
     seeds = vtk.vtkPlaneSource()
     seeds.SetXResolution(resolution)
     seeds.SetYResolution(resolution)

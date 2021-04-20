@@ -25,4 +25,6 @@
     * volcano_2011_002.vtk => June 2, 2011 AM
     * volcano_2011_003.vtk => June 2, 2011 PM
     * etc...
-    * Ash can first visibly be seen on volcano_2011_012.vtk. Doesn't completely dissipate until volcano_2011_048.vtk.
+    * Ash can first visibly be seen on volcano_2011_012.vtk.
+* Second Eruption
+    * June 12/13, Nabro eruption

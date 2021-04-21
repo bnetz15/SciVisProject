@@ -59,6 +59,8 @@ class KeyboardInterface(object):
             self.point1 = self.check_bounds(self.point1)
             self.sphere1.SetCenter(self.point1)
             self.seeds.SetPoint1(self.point1)
+            streamline.Update()
+            streamline.GetOutput().GetPointData().SetActiveScalars("Vorticity")
             render_window.Render()
         elif key in point2_dir:
             self.point2 = [
@@ -66,11 +68,15 @@ class KeyboardInterface(object):
             self.point2 = self.check_bounds(self.point2)
             self.sphere2.SetCenter(self.point2)
             self.seeds.SetPoint2(self.point2)
+            streamline.Update()
+            streamline.GetOutput().GetPointData().SetActiveScalars("Vorticity")
             render_window.Render()
         elif key == 'UP':
             self.resolution += 1
             self.seeds.SetXResolution(self.resolution)
             self.seeds.SetYResolution(self.resolution)
+            streamline.Update()
+            streamline.GetOutput().GetPointData().SetActiveScalars("Vorticity")
             render_window.Render()
         elif key == 'DOWN':
             self.resolution -= 1
@@ -78,6 +84,8 @@ class KeyboardInterface(object):
                 self.resolution = 1
             self.seeds.SetXResolution(self.resolution)
             self.seeds.SetYResolution(self.resolution)
+            streamline.Update()
+            streamline.GetOutput().GetPointData().SetActiveScalars("Vorticity")
             render_window.Render()
 
 def main():
@@ -100,14 +108,11 @@ def main():
     # color map
     colors = vtk.vtkNamedColors()
     colorSeries = vtk.vtkColorSeries()
-    colorSeries.SetColorScheme(vtk.vtkColorSeries.BREWER_DIVERGING_PURPLE_ORANGE_3)
+    colorSeries.SetColorScheme(vtk.vtkColorSeries.BREWER_SEQUENTIAL_YELLOW_ORANGE_BROWN_9)
     lut = vtk.vtkLookupTable()
     colorSeries.BuildLookupTable(lut, vtk.vtkColorSeries.ORDINAL)
 
-    a, b = reader.GetOutput().GetScalarRange()
-
-    # Stream Tracer
-    resolution = 5
+    resolution = 4
     seeds = vtk.vtkPlaneSource()
     seeds.SetXResolution(resolution)
     seeds.SetYResolution(resolution)
@@ -120,6 +125,8 @@ def main():
     seeds.SetPoint1(seedpoint1_location)
     seeds.SetPoint2(seedpoint2_location)
 
+    # Stream Tracer
+    global streamline
     streamline = vtk.vtkStreamTracer()
     streamline.SetInputData(reader.GetOutput())
     streamline.SetSourceConnection(seeds.GetOutputPort())
@@ -127,15 +134,32 @@ def main():
     streamline.SetIntegratorTypeToRungeKutta45()
     streamline.SetInitialIntegrationStep(.2)
     streamline.SetIntegrationDirectionToBoth()
+    streamline.Update()
+
+    streamline.GetOutput().GetPointData().SetActiveScalars("Vorticity")
 
     streamlineMapper = vtk.vtkPolyDataMapper()
-    streamlineMapper.SetLookupTable(lut)
-    streamlineMapper.SetScalarRange(a, b)
     streamlineMapper.SetInputConnection(streamline.GetOutputPort())
     streamlineActor = vtk.vtkActor()
     streamlineActor.SetMapper(streamlineMapper)
     streamlineActor.GetProperty().SetLineWidth(1.0)
     streamlineActor.VisibilityOn()
+
+    # tube filter
+    tubeFilter = vtk.vtkTubeFilter()
+    tubeFilter.SetInputConnection(streamline.GetOutputPort())
+    tubeFilter.SetRadius(0.15)
+    tubeFilter.SetNumberOfSides(50)
+    tubeFilter.Update()
+
+    tubeMapper = vtk.vtkPolyDataMapper()
+    tubeMapper.SetLookupTable(lut)
+    #tubeMapper.SetScalarRange(streamline.GetOutput().GetScalarRange())
+    tubeMapper.SetScalarRange(0, 6)
+    tubeMapper.SetInputConnection(tubeFilter.GetOutputPort())
+
+    tubeActor = vtk.vtkActor()
+    tubeActor.SetMapper(tubeMapper)
 
     # Draw seed points
     sphere1 = vtk.vtkSphereSource()
@@ -173,11 +197,17 @@ def main():
     outlineActor.GetProperty().SetColor(0.8, 0.8, 0.8)
     outlineActor.GetProperty().SetLineWidth(3.0)
 
+    # color bar
+    scalar_bar = vtk.vtkScalarBarActor()
+    scalar_bar.SetOrientationToHorizontal()
+    scalar_bar.SetLookupTable(lut)
+    scalar_bar.SetTitle("Vorticity")
+
     # Text
     txt = vtk.vtkTextActor()
     txt.SetInput(
         "Press UP arrow to increase streamlines\n"
-        "Press DOWN arrow to decrease streamlines to toggle Plane\n\n"
+        "Press DOWN arrow to decrease streamlines\n\n"
         "Press Z, X, C, V, B, N to modify the position of the red seed point\n"
         "Press M, G, H, J, K, L to modify the position of the blue seed point\n"
     )
@@ -193,7 +223,8 @@ def main():
 
     # add actors
     renderer.AddActor(outlineActor)
-    renderer.AddActor(streamlineActor)
+    #renderer.AddActor(streamlineActor)
+    renderer.AddActor(tubeActor)
     renderer.AddActor(pointActor1)
     renderer.AddActor(pointActor2)
     renderer.AddActor(txt)
@@ -208,6 +239,12 @@ def main():
     # Create an interactor
     interactor = vtk.vtkRenderWindowInteractor()
     interactor.SetRenderWindow(render_window)
+
+    # create the scalar_bar_widget
+    scalar_bar_widget = vtk.vtkScalarBarWidget()
+    scalar_bar_widget.SetInteractor(interactor)
+    scalar_bar_widget.SetScalarBarActor(scalar_bar)
+    scalar_bar_widget.On()
 
     # Create a window-to-image filter and a PNG writer that can be used
     # to take screenshots

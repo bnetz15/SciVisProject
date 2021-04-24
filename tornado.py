@@ -1,6 +1,8 @@
 import vtk
 from vtk.numpy_interface import algorithms as algs
 import vtk.util.numpy_support as nps
+import math
+import random
 
 class KeyboardInterface(object):
     def __init__(self, point1, point2, sphere1, sphere2, seeds, resolution, bounds):
@@ -74,7 +76,11 @@ class KeyboardInterface(object):
         elif key == 'UP':
             self.resolution += 1
             self.seeds.SetXResolution(self.resolution)
-            self.seeds.SetYResolution(self.resolution)
+            # cap at 3 for that aesthetic
+            if self.resolution > 3:
+                self.seeds.SetYResolution(3)
+            else:
+                self.seeds.SetYResolution(math.ceil(self.resolution / 2))
             streamline.Update()
             streamline.GetOutput().GetPointData().SetActiveScalars("Vorticity")
             render_window.Render()
@@ -83,9 +89,29 @@ class KeyboardInterface(object):
             if self.resolution <= 1:
                 self.resolution = 1
             self.seeds.SetXResolution(self.resolution)
-            self.seeds.SetYResolution(self.resolution)
+            if self.resolution > 3:
+                self.seeds.SetYResolution(3)
+            else:
+                self.seeds.SetYResolution(math.ceil(self.resolution / 2))
             streamline.Update()
             streamline.GetOutput().GetPointData().SetActiveScalars("Vorticity")
+            render_window.Render()
+        elif key == "SPACE":
+            self.point1 = (
+                random.randint(int(self.xmin), int(self.xmax) + 1),
+                random.randint(int(self.ymin), int(self.ymax) + 1),
+                random.randint(int(self.zmin), int(self.zmax) + 1)
+            )
+            self.sphere1.SetCenter(self.point1)
+            self.seeds.SetPoint1(self.point1)
+
+            self.point2 = (
+                random.randint(int(self.xmin), int(self.xmax) + 1),
+                random.randint(int(self.ymin), int(self.ymax) + 1),
+                random.randint(int(self.zmin), int(self.zmax) + 1)
+            )
+            self.sphere2.SetCenter(self.point2)
+            self.seeds.SetPoint2(self.point2)
             render_window.Render()
 
 def main():
@@ -115,7 +141,7 @@ def main():
     resolution = 4
     seeds = vtk.vtkPlaneSource()
     seeds.SetXResolution(resolution)
-    seeds.SetYResolution(resolution)
+    seeds.SetYResolution(resolution // 2)
 
     xmin, xmax, ymin, ymax, zmin, zmax = reader.GetOutput().GetBounds()
     seedpoint1_location = [xmin, ymin, zmin]
@@ -209,7 +235,8 @@ def main():
         "Press UP arrow to increase streamlines\n"
         "Press DOWN arrow to decrease streamlines\n\n"
         "Press Z, X, C, V, B, N to modify the position of the red seed point\n"
-        "Press M, G, H, J, K, L to modify the position of the blue seed point\n"
+        "Press M, G, H, J, K, L to modify the position of the blue seed point\n\n"
+        "Press Space Bar for random seed positions"
     )
     txtprop = txt.GetTextProperty()
     txtprop.SetFontFamilyToArial()
